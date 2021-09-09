@@ -541,6 +541,11 @@ namespace VRCBilliards
 
         private UInt32 oldDesktopCue;
         private UInt32 newDesktopCue;
+        
+        /// <summary>
+        /// Force inflicted on non-kinematic pool balls from the center of the table outwards. Helps prevent bounce-back.
+        /// </summary>
+        private float repulsionForce = 0.2F;
 
         /// <summary>
         /// Have we run a network sync once? Used for situations where we need to specifically catch up a late-joiner.
@@ -1128,7 +1133,29 @@ namespace VRCBilliards
                 }
             }
         }
+        
+        private void FixedUpdate()
+        {
+            if (isGameInMenus)
+            {
+                return;
+            }
+            
+            Vector3 referencePosition = transform.position;
 
+            foreach(Rigidbody poolBall in ballRigidbodies)
+            {
+                if (poolBall.isKinematic || !((referencePosition.y - poolBall.position.y) < 0))
+                {
+                    continue;
+                }
+
+                Vector3 differenceNormalized = poolBall.position - referencePosition;
+                differenceNormalized = Vector3.Normalize(differenceNormalized) * repulsionForce;
+
+                poolBall.AddForce(differenceNormalized);
+            }
+        }
         public void _ReEnableShadowConstraints()
         {
             foreach (PositionConstraint con in ballShadowPosConstraints)
@@ -2173,6 +2200,7 @@ namespace VRCBilliards
 
                     isRepositioningCueBall = true;
                     repoMaxX = -SPOT_POSITION_X;
+                    ballRigidbodies[0].isKinematic = true;
 
                     if (marker)
                     {
@@ -2678,6 +2706,7 @@ namespace VRCBilliards
                 if (isOurTurn)
                 {
                     isRepositioningCueBall = true;
+                    ballRigidbodies[0].isKinematic = true;
                     repoMaxX = TABLE_WIDTH;
 
                     if (logger)
